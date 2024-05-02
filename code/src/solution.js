@@ -22,8 +22,8 @@ window.init = async () => {
   scene.background = new THREE.Color(0xaaaaaa);
 
   camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  camera.position.set(0, 5, -10);
-  camera.lookAt(0, 0, 0);
+  camera.position.set(0, 10, -20);
+  camera.lookAt(new THREE.Vector3(0, 0, 0));
 
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
   scene.add(ambientLight);
@@ -49,6 +49,7 @@ window.init = async () => {
   scene.add(ground);
 
   textureLoader.load('assets/rocks.jpg', function(texture) {
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping; // Enable texture wrapping
     const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
     const sphereMaterial = new THREE.MeshStandardMaterial({ map: texture });
     ball = new THREE.Mesh(sphereGeometry, sphereMaterial);
@@ -57,20 +58,49 @@ window.init = async () => {
   });
 
   createObjects(50); // Create 50 random objects
+  createWalls(); // Create walls around the playground
 
   document.addEventListener('keydown', onKeyDown, false);
   document.addEventListener('keyup', onKeyUp, false);
 
+  updateScoreDisplay();
   setTimeout(endGame, gameDuration * 1000); // End the game after the timer expires
   animate();
 };
 
+function updateScoreDisplay() {
+  const scoreElement = document.getElementById('scoreContainer');
+  scoreElement.innerHTML = `Score: ${score}`;
+}
+
+function createWalls() {
+  const wallMaterial = new THREE.MeshBasicMaterial({ color: 0x888888 });
+  const wallGeometry = new THREE.BoxGeometry(500, 5, 2);
+  const walls = [
+    new THREE.Mesh(wallGeometry, wallMaterial), // North wall
+    new THREE.Mesh(wallGeometry, wallMaterial), // South wall
+    new THREE.Mesh(wallGeometry, wallMaterial), // East wall
+    new THREE.Mesh(wallGeometry, wallMaterial)  // West wall
+  ];
+
+  walls[0].position.set(0, 2.5, -251); // North
+  walls[1].position.set(0, 2.5, 251);  // South
+  walls[2].rotation.y = Math.PI / 2;   // Rotate vertical walls
+  walls[3].rotation.y = Math.PI / 2;   // Rotate vertical walls
+  walls[2].position.set(-251, 2.5, 0); // West
+  walls[3].position.set(251, 2.5, 0);  // East
+
+  walls.forEach(wall => {
+    scene.add(wall);
+  });
+}
+
 function createObjects(count) {
   const geometries = [
     new THREE.BoxGeometry(1, 1, 1),
-    new THREE.SphereGeometry(0.25, 32, 32),
-    new THREE.ConeGeometry(0.3, 1, 32),
-    new THREE.TorusGeometry(0.3, 0.1, 16, 100)
+    new THREE.SphereGeometry(0.5, 32, 32),
+    new THREE.ConeGeometry(0.6, 2, 32),
+    new THREE.TorusGeometry(0.6, 0.2, 16, 100)
   ];
 
   for (let i = 0; i < count; i++) {
@@ -79,9 +109,9 @@ function createObjects(count) {
     const material = new THREE.MeshStandardMaterial({ color: color });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(
-      Math.random() * 100 - 50, // Random x position from -50 to 50
+      (Math.random() * 400) - 200, // Random x position from -200 to 200 within walls
       0.5,
-      Math.random() * 100 - 50 // Random z position from -50 to 50
+      (Math.random() * 400) - 200 // Random z position from -200 to 200 within walls
     );
     objects.push(mesh);
     scene.add(mesh);
@@ -135,6 +165,7 @@ function checkCollisions() {
     const ballBoundingBox = new THREE.Box3().setFromObject(ball);
     if (objBoundingBox.intersectsBox(ballBoundingBox)) {
       score += 10; // Increase score
+      updateScoreDisplay(); // Update the score display each time score changes
       const newRadius = ball.geometry.parameters.radius + 0.02;
       ball.geometry.dispose();
       ball.geometry = new THREE.SphereGeometry(newRadius, 32, 32);
@@ -146,9 +177,9 @@ function checkCollisions() {
 }
 
 function updateCamera() {
-  camera.position.x = ball.position.x + 5; // Adjust x-offset as needed
-  camera.position.y = ball.position.y + 5; // Adjust y-offset as needed
-  camera.position.z = ball.position.z + 5; // Adjust z-offset as needed
+  camera.position.x = ball.position.x;
+  camera.position.y = ball.position.y + 5;
+  camera.position.z = ball.position.z + 5;
   camera.lookAt(ball.position);
 }
 
