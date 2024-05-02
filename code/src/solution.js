@@ -7,6 +7,7 @@ let objects = [];
 let score = 0;
 let gameDuration = 20; // Game duration in seconds
 let gameActive = true;
+let collisionEffects = [];
 
 const load = (url) => new Promise((resolve, reject) => {
   const loader = new GLTFLoader();
@@ -83,12 +84,12 @@ function createWalls() {
     new THREE.Mesh(wallGeometry, wallMaterial)  // West wall
   ];
 
-  walls[0].position.set(0, 2.5, -251); // North
-  walls[1].position.set(0, 2.5, 251);  // South
+  walls[0].position.set(0, 2.5, -51); // North
+  walls[1].position.set(0, 2.5, 51);  // South
   walls[2].rotation.y = Math.PI / 2;   // Rotate vertical walls
   walls[3].rotation.y = Math.PI / 2;   // Rotate vertical walls
-  walls[2].position.set(-251, 2.5, 0); // West
-  walls[3].position.set(251, 2.5, 0);  // East
+  walls[2].position.set(-51, 2.5, 0); // West
+  walls[3].position.set(51, 2.5, 0);  // East
 
   walls.forEach(wall => {
     scene.add(wall);
@@ -170,6 +171,15 @@ function checkCollisions() {
       ball.geometry.dispose();
       ball.geometry = new THREE.SphereGeometry(newRadius, 32, 32);
       scene.remove(obj);
+
+      // Create light effect on collision
+      const collisionLight = new THREE.PointLight(0xffffff, 1, 50);
+      collisionLight.position.set(obj.position.x, obj.position.y, obj.position.z);
+      scene.add(collisionLight);
+      setTimeout(() => {
+        scene.remove(collisionLight);
+      }, 150);
+
       return false;
     }
     return true;
@@ -178,8 +188,8 @@ function checkCollisions() {
 
 function updateCamera() {
   camera.position.x = ball.position.x;
-  camera.position.y = ball.position.y + 5;
-  camera.position.z = ball.position.z + 5;
+  camera.position.y = ball.position.y + 2.5;
+  camera.position.z = ball.position.z + 6;
   camera.lookAt(ball.position);
 }
 
