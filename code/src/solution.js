@@ -3,6 +3,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 let renderer, scene, camera, ball;
 let speed = new THREE.Vector3(0, 0, 0);
+let acceleration = new THREE.Vector3(0, 0, 0);
+let friction = 0.98;
 let objects = [];
 let score = 0;
 let gameDuration = 20; // Game duration in seconds
@@ -50,7 +52,7 @@ window.init = async () => {
   scene.add(ground);
 
   textureLoader.load('assets/rocks.jpg', function(texture) {
-    texture.wrapS = texture.wrapT = THREE.RepeatWrapping; // Enable texture wrapping
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
     const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
     const sphereMaterial = new THREE.MeshStandardMaterial({ map: texture });
     ball = new THREE.Mesh(sphereGeometry, sphereMaterial);
@@ -58,7 +60,7 @@ window.init = async () => {
     scene.add(ball);
   });
 
-  createObjects(50); // Create 50 random objects
+  createObjects(500); // Create 50 random objects
   createWalls(); // Create walls around the playground
 
   document.addEventListener('keydown', onKeyDown, false);
@@ -76,22 +78,18 @@ function updateScoreDisplay() {
 
 function createWalls() {
   const wallMaterial = new THREE.MeshBasicMaterial({ color: 0x888888 });
-  const wallGeometry = new THREE.BoxGeometry(500, 5, 2);
-  const walls = [
-    new THREE.Mesh(wallGeometry, wallMaterial), // North wall
-    new THREE.Mesh(wallGeometry, wallMaterial), // South wall
-    new THREE.Mesh(wallGeometry, wallMaterial), // East wall
-    new THREE.Mesh(wallGeometry, wallMaterial)  // West wall
+  const wallGeometry = new THREE.BoxGeometry(202, 2, 2);
+  const wallPositions = [
+    { x: 0, y: 1, z: -101 }, // North
+    { x: 0, y: 1, z: 101 },  // South
+    { x: -101, y: 1, z: 0 }, // West
+    { x: 101, y: 1, z: 0 }   // East
   ];
 
-  walls[0].position.set(0, 2.5, -51); // North
-  walls[1].position.set(0, 2.5, 51);  // South
-  walls[2].rotation.y = Math.PI / 2;   // Rotate vertical walls
-  walls[3].rotation.y = Math.PI / 2;   // Rotate vertical walls
-  walls[2].position.set(-51, 2.5, 0); // West
-  walls[3].position.set(51, 2.5, 0);  // East
-
-  walls.forEach(wall => {
+  wallPositions.forEach(pos => {
+    const wall = new THREE.Mesh(wallGeometry, wallMaterial);
+    wall.position.set(pos.x, pos.y, pos.z);
+    wall.rotation.y = pos.x !== 0 ? Math.PI / 2 : 0;
     scene.add(wall);
   });
 }
@@ -110,9 +108,9 @@ function createObjects(count) {
     const material = new THREE.MeshStandardMaterial({ color: color });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(
-      (Math.random() * 400) - 200, // Random x position from -200 to 200 within walls
+      (Math.random() * 400) - 100, 
       0.5,
-      (Math.random() * 400) - 200 // Random z position from -200 to 200 within walls
+      (Math.random() * 400) - 100 
     );
     objects.push(mesh);
     scene.add(mesh);
@@ -122,10 +120,10 @@ function createObjects(count) {
 function onKeyDown(event) {
   if (!gameActive) return;
   switch (event.keyCode) {
-    case 37: speed.x = -0.05; break;
-    case 39: speed.x = 0.05; break;
-    case 38: speed.z = -0.05; break;
-    case 40: speed.z = 0.05; break;
+    case 37: acceleration.x = -0.003; break;
+    case 39: acceleration.x = 0.003; break;
+    case 38: acceleration.z = -0.003; break;
+    case 40: acceleration.z = 0.003; break;
   }
 }
 
@@ -133,16 +131,20 @@ function onKeyUp(event) {
   if (!gameActive) return;
   switch (event.keyCode) {
     case 37:
-    case 39: speed.x = 0; break;
+    case 39: acceleration.x = 0; break;
     case 38:
-    case 40: speed.z = 0; break;
+    case 40: acceleration.z = 0; break;
   }
 }
 
 function animate() {
   if (!gameActive) return;
   requestAnimationFrame(animate);
+  //Apply Acceleration
+  speed.add(acceleration);
 
+  // Apply friction
+  speed.multiplyScalar(friction);
   if (ball) {
     ball.position.add(speed);
     if (speed.length() > 0) {
@@ -152,6 +154,8 @@ function animate() {
       let angularVelocity = distanceTravelled / (2 * Math.PI * ballRadius);
       ball.rotateOnAxis(rotationAxis, angularVelocity);
     }
+    ball.position.x = THREE.MathUtils.clamp(ball.position.x, -100, 100);
+    ball.position.z = THREE.MathUtils.clamp(ball.position.z, -100, 100);
 
     checkCollisions();
   }
@@ -167,7 +171,7 @@ function checkCollisions() {
     if (objBoundingBox.intersectsBox(ballBoundingBox)) {
       score += 10; // Increase score
       updateScoreDisplay(); // Update the score display each time score changes
-      const newRadius = ball.geometry.parameters.radius + 0.02;
+      const newRadius = ball.geometry.parameters.radius + 0.05;
       ball.geometry.dispose();
       ball.geometry = new THREE.SphereGeometry(newRadius, 32, 32);
       scene.remove(obj);
@@ -189,7 +193,7 @@ function checkCollisions() {
 function updateCamera() {
   camera.position.x = ball.position.x;
   camera.position.y = ball.position.y + 2.5;
-  camera.position.z = ball.position.z + 6;
+  camera.position.z = ball.position.z + 8;
   camera.lookAt(ball.position);
 }
 
